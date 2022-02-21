@@ -10,7 +10,6 @@ export const post = async (request) => {
   
 
   return api(request, {
-    uid: `${Date.now()}`,
     created_at: new Date(),
     text: data.get("text"),
     done: false
