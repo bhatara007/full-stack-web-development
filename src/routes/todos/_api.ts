@@ -1,55 +1,66 @@
 
+import type { RequestEvent } from '@sveltejs/kit'
+import PrismaClient from "$lib/prisma";
 
-// TODO: Persist in database
 let todos: Todo[] = [];
+const prisma = new PrismaClient();
 
-export const api = (request , data?: Record<string, unknown>) => {
-  let body = {};
-  let status = 500
+export const api = async (request, data?: Record<string, unknown>) => {
+    let body = {};
+    let status = 500;
+    switch (request.request.method.toUpperCase()) {
+        case "GET":
+            body = await prisma.todo.findMany();
+            status = 200;
+            break;
+        case "POST":
+            body = await prisma.todo.create({
+                data: {
+                    created_at: data.created_at as Date,
+                    done: data.done as boolean,
+                    text: data.text as string
+                }
+            })
+            status = 201;
 
-
-
-
-  switch (request.request.method.toUpperCase()) {
-    case "GET":
-      body = todos;
-      status = 200;
-      break;
-    case "POST":
-      console.log(data.text)
-      todos.push(data as Todo);
-      body = todos
-      status = 201
-      break;
-    case "DELETE":
-      status = 200;
-      todos = todos.filter(todo => todo.uid != request.params.uid)
-    case "PATCH":
-      todos = todos.map(todo => {
-        if (todo.uid === request.params.uid) {
-          if (data.text) todo.text = data.text as string;
-          else todo.done = data.done as boolean;
+            break;
+        case "DELETE":
+            body = await prisma.todo.delete({
+                where: {
+                    uid: request.params.uid
+                }
+            })
+            // todos = todos.filter(todo => todo.uid !== request.params.uid)
+            status = 200;
+            break;
+        case "PATCH":
+            body = await prisma.todo.update({
+                where: {
+                    uid: request.params.uid
+                },
+                data: {
+                    done: data.done,
+                    text: data.text || undefined
+                }
+            })
+            status = 200;
+            break;
+  
+        default:
+        break;
+    }
+    if (request.request.method.toUpperCase() !== "GET" &&
+        request.request.headers.get("accept") !== "application/json") {
+        return {
+            status: 303,
+            headers: {
+                location: "/"
+            }
         }
-        return todo;
-      });
-      status = 200;
-      body = todos.find(todo => todo.uid === request.params.uid);
-    break;
-    default:
-      break;
-  }
+    }
 
-  if (request.request.method.toUpperCase() !== "GET" && request.request.headers.get("accept") !== "application/json") {
     return {
-      status: 303,
-      headers: {
-        location: "/"
-      }
-    };
-  }
-
-  return {
-    status,
-    body
-  }
-} 
+        status,
+        body
+    }
+}
